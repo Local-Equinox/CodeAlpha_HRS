@@ -1,6 +1,6 @@
 # CodeAlpha - Hotel Reservation System
 
-A Java-based desktop GUI application designed to search, book, and manage hotel room reservations with simulated payment processing and dynamic inventory management. Built as part of the **CodeAlpha Java Development Internship**.
+A Java-based desktop GUI application designed to search, book, and manage hotel room reservations with simulated payment processing and dynamic inventory management. Developed as part of the **CodeAlpha Java Development Internship**.
 
 ---
 
