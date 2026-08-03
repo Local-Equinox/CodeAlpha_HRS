@@ -39,6 +39,7 @@ public class HotelSystemGUI extends JFrame {
     private DefaultTableModel adminRoomsModel, adminUsersModel, adminAllResModel;
 
     public HotelSystemGUI() {
+        
         hotel = new Hotel();
 
         setTitle("Hotel Reservation System - CodeAlpha");
@@ -76,7 +77,8 @@ public class HotelSystemGUI extends JFrame {
 
         pack();
         setLocationRelativeTo(null);
-        applyTheme();
+        applyExactTheme();
+
     }
 
     // ==========================================
@@ -461,37 +463,106 @@ public class HotelSystemGUI extends JFrame {
     }
 
     // ==========================================
-    // 4. LIGHT / DARK THEME ENGINE
+    // EXACT UI COLOR PALETTE ENGINE
     // ==========================================
     private void toggleTheme() {
         isDarkMode = themeToggle.getSelectedIndex() == 1;
-        applyTheme();
+        applyExactTheme();
     }
 
-    private void applyTheme() {
-        Color bg = isDarkMode ? new Color(30, 30, 30) : new Color(245, 245, 247);
-        Color panelBg = isDarkMode ? new Color(45, 45, 45) : Color.WHITE;
-        Color textFg = isDarkMode ? new Color(220, 220, 220) : Color.BLACK;
+    private void applyExactTheme() {
+        // --- 1. COLOR DEFINITIONS FROM IMAGE ---
+        // Light Mode: Warm Cream & Gold
+        Color lightBg       = new Color(249, 246, 238); // Soft Cream #F9F6EE
+        Color lightCard     = new Color(255, 255, 255); // Pure White #FFFFFF
+        Color lightText     = new Color(44, 40, 37);    // Dark Charcoal #2C2825
+        Color lightBtnBg    = new Color(200, 157, 76);  // Warm Gold #C89D4C
+        Color lightBorder   = new Color(235, 220, 185); // Light Amber Border #EBDCB9
 
-        // Set global colors recursively
-        updateComponentColors(this, bg, panelBg, textFg);
+        // Dark Mode: Deep Obsidian & Neon Blue
+        Color darkBg        = new Color(15, 17, 26);    // Deep Obsidian #0F111A
+        Color darkCard      = new Color(24, 27, 38);    // Midnight Blue #181B26
+        Color darkText      = new Color(224, 227, 245); // Soft Ice White #E0E3F5
+        Color darkBtnBg     = new Color(53, 58, 112);   // Neon Blue Accent #353A70
+        Color darkBorder    = new Color(58, 63, 88);    // Soft Glowing Navy Border #3A3F58
 
+        // Active Palette Assignment
+        Color activeBg     = isDarkMode ? darkBg : lightBg;
+        Color activeCard   = isDarkMode ? darkCard : lightCard;
+        Color activeText   = isDarkMode ? darkText : lightText;
+        Color activeBtnBg  = isDarkMode ? darkBtnBg : lightBtnBg;
+        Color activeBorder = isDarkMode ? darkBorder : lightBorder;
+
+        // --- 2. APPLY TO MAIN WINDOW ---
+        getContentPane().setBackground(activeBg);
+        mainPanel.setBackground(activeBg);
+
+        // --- 3. RECURSIVE STYLING ---
+        styleComponents(this, activeBg, activeCard, activeText, activeBtnBg, activeBorder);
+
+        // Refresh UI tree
         SwingUtilities.updateComponentTreeUI(this);
     }
 
-    private void updateComponentColors(Component comp, Color bg, Color panelBg, Color textFg) {
-        if (comp instanceof JPanel || comp instanceof JTabbedPane) {
-            comp.setBackground(panelBg);
-        } else if (comp instanceof JLabel) {
+    private void styleComponents(Component comp, Color bg, Color cardBg, Color textFg, Color btnBg, Color borderClr) {
+        // Style Panels
+        if (comp instanceof JPanel) {
+            comp.setBackground(cardBg);
+            if (((JPanel) comp).getBorder() instanceof javax.swing.border.TitledBorder) {
+                javax.swing.border.TitledBorder border = (javax.swing.border.TitledBorder) ((JPanel) comp).getBorder();
+                border.setTitleColor(textFg);
+                border.setBorder(BorderFactory.createLineBorder(borderClr, 1, true));
+            }
+        } 
+        // Style Labels
+        else if (comp instanceof JLabel) {
             comp.setForeground(textFg);
-        } else if (comp instanceof JTable) {
-            comp.setBackground(panelBg);
+        } 
+        // Style Buttons
+        else if (comp instanceof JButton) {
+            JButton btn = (JButton) comp;
+            btn.setBackground(btnBg);
+            btn.setForeground(Color.WHITE);
+            btn.setFocusPainted(false);
+            btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(borderClr, 1, true),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+            ));
+        } 
+        // Style Text Fields
+        else if (comp instanceof JTextField || comp instanceof JPasswordField) {
+            comp.setBackground(cardBg);
+            comp.setForeground(textFg);
+            ((JComponent) comp).setBorder(BorderFactory.createLineBorder(borderClr, 1, true));
+        } 
+        // Style Dropdowns
+        else if (comp instanceof JComboBox) {
+            comp.setBackground(cardBg);
+            comp.setForeground(textFg);
+        } 
+        // Style Tables & Headers
+        else if (comp instanceof JTable) {
+            JTable table = (JTable) comp;
+            table.setBackground(cardBg);
+            table.setForeground(textFg);
+            table.setGridColor(borderClr);
+            table.setSelectionBackground(btnBg);
+            table.setSelectionForeground(Color.WHITE);
+            if (table.getTableHeader() != null) {
+                table.getTableHeader().setBackground(btnBg);
+                table.getTableHeader().setForeground(Color.WHITE);
+            }
+        } 
+        // Style Tabbed Pane
+        else if (comp instanceof JTabbedPane) {
+            comp.setBackground(cardBg);
             comp.setForeground(textFg);
         }
 
+        // Traverse children
         if (comp instanceof Container) {
             for (Component child : ((Container) comp).getComponents()) {
-                updateComponentColors(child, bg, panelBg, textFg);
+                styleComponents(child, bg, cardBg, textFg, btnBg, borderClr);
             }
         }
     }
