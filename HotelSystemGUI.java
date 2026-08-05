@@ -1,6 +1,12 @@
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 
 public class HotelSystemGUI extends JFrame {
     private Hotel hotel;
@@ -10,6 +16,7 @@ public class HotelSystemGUI extends JFrame {
     // UI Container Cards
     private CardLayout cardLayout;
     private JPanel mainPanel;
+    private JTabbedPane authTabs;
 
     // Theme Selector
     private JComboBox<String> themeToggle;
@@ -27,6 +34,7 @@ public class HotelSystemGUI extends JFrame {
     private JTextField checkInField;
     private JTextField checkOutField;
     private JTextField totalAmountField;
+    private String lastAutoCalcDates = "";
     private JTable userRoomsTable;
     private DefaultTableModel userRoomsTableModel;
     private JTable userResTable;
@@ -86,7 +94,7 @@ public class HotelSystemGUI extends JFrame {
     // ==========================================
     private JPanel createAuthPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
-        JTabbedPane authTabs = new JTabbedPane();
+        authTabs = new JTabbedPane();
         authTabs.setPreferredSize(new Dimension(380, 280));
 
         // Login Sub-Tab
@@ -126,6 +134,16 @@ public class HotelSystemGUI extends JFrame {
         authTabs.addTab("Register New Guest", regPanel);
 
         panel.add(authTabs);
+
+        // Demo credentials hint (parity with the web preview login screen)
+        JLabel demoHint = new JLabel("<html><center>Demo accounts — Admin: <b>admin / admin123</b> &nbsp;·&nbsp; Guest: <b>john_doe / password</b><br>Or register a new guest account.</center></html>");
+        demoHint.setFont(demoHint.getFont().deriveFont(11f));
+        demoHint.setHorizontalAlignment(SwingConstants.CENTER);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridy = 1;
+        gbc.insets = new Insets(14, 0, 0, 0);
+        panel.add(demoHint, gbc);
+
         return panel;
     }
 
@@ -166,6 +184,7 @@ public class HotelSystemGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Account Created Successfully!\nYour Assigned Guest ID is: #" + newUser.getGuestId(), "Registration Successful", JOptionPane.INFORMATION_MESSAGE);
             regUserField.setText("");
             regPassField.setText("");
+            authTabs.setSelectedIndex(0); // land on the Login tab after registering
         } else {
             JOptionPane.showMessageDialog(this, "Username already exists. Choose another.", "Registration Failed", JOptionPane.WARNING_MESSAGE);
         }
@@ -213,6 +232,20 @@ public class HotelSystemGUI extends JFrame {
         checkOutField = new JTextField("2026-08-14", 8);
         row2.add(checkOutField);
 
+        // Recompute the total when dates are committed (parity with the web preview)
+        checkInField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                recalcIfDatesChanged();
+            }
+        });
+        checkOutField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                recalcIfDatesChanged();
+            }
+        });
+
         row2.add(new JLabel("Total ($):"));
         totalAmountField = new JTextField(6);
         row2.add(totalAmountField);
@@ -231,10 +264,12 @@ public class HotelSystemGUI extends JFrame {
 
         userRoomsTableModel = new DefaultTableModel(new String[]{"Room Number", "Type", "Category", "Price/Night", "Status"}, 0);
         userRoomsTable = new JTable(userRoomsTableModel);
+        userRoomsTable.getColumnModel().getColumn(4).setCellRenderer(new StatusBadgeRenderer());
         tabs.addTab("Available Rooms Directory", new JScrollPane(userRoomsTable));
 
         userResTableModel = new DefaultTableModel(new String[]{"Reservation ID", "Room Number", "Check-In", "Check-Out", "Amount ($)", "Status"}, 0);
         userResTable = new JTable(userResTableModel);
+        userResTable.getColumnModel().getColumn(5).setCellRenderer(new StatusBadgeRenderer());
 
         JPanel myResPanel = new JPanel(new BorderLayout());
         myResPanel.add(new JScrollPane(userResTable), BorderLayout.CENTER);
@@ -263,12 +298,37 @@ public class HotelSystemGUI extends JFrame {
     }
 
     private void autoCalculateUserAmount() {
+        lastAutoCalcDates = checkInField.getText() + "|" + checkOutField.getText();
         Room r = (Room) userRoomDropdown.getSelectedItem();
         if (r != null) {
-            totalAmountField.setText(String.valueOf(r.getPricePerNight() * 4));
+            int nights = calculateNights(checkInField.getText(), checkOutField.getText());
+            totalAmountField.setText(String.format(Locale.US, "%.2f", r.getPricePerNight() * nights));
         } else {
             totalAmountField.setText("");
         }
+    }
+
+    // Only recompute when the dates actually changed, so a manually
+    // entered total is not clobbered on unrelated focus loss.
+    private void recalcIfDatesChanged() {
+        String key = checkInField.getText() + "|" + checkOutField.getText();
+        if (!key.equals(lastAutoCalcDates)) {
+            autoCalculateUserAmount();
+        }
+    }
+
+    // Date-aware night count (parity with the web preview): falls back to the
+    // original fixed 4-night behavior when dates are missing or invalid.
+    private int calculateNights(String checkIn, String checkOut) {
+        try {
+            LocalDate inDate = LocalDate.parse(checkIn.trim());
+            LocalDate outDate = LocalDate.parse(checkOut.trim());
+            long nights = ChronoUnit.DAYS.between(inDate, outDate);
+            if (nights > 0) return (int) nights;
+        } catch (Exception ignored) {
+            // fall through to the default
+        }
+        return 4;
     }
 
     private void handleUserBookRoom() {
@@ -369,6 +429,7 @@ public class HotelSystemGUI extends JFrame {
 
         adminRoomsModel = new DefaultTableModel(new String[]{"Room Number", "Type", "Category", "Price / Night", "Availability"}, 0);
         adminRoomsTable = new JTable(adminRoomsModel);
+        adminRoomsTable.getColumnModel().getColumn(4).setCellRenderer(new StatusBadgeRenderer());
 
         roomMgmtPanel.add(addRoomBox, BorderLayout.NORTH);
         roomMgmtPanel.add(new JScrollPane(adminRoomsTable), BorderLayout.CENTER);
@@ -378,6 +439,7 @@ public class HotelSystemGUI extends JFrame {
         JPanel usersPanel = new JPanel(new BorderLayout());
         adminUsersModel = new DefaultTableModel(new String[]{"Guest ID", "Username", "Role"}, 0);
         adminUsersTable = new JTable(adminUsersModel);
+        adminUsersTable.getColumnModel().getColumn(2).setCellRenderer(new StatusBadgeRenderer());
 
         JButton deleteUserBtn = new JButton("Delete Selected User Account");
         deleteUserBtn.setForeground(Color.RED.darker());
@@ -390,6 +452,7 @@ public class HotelSystemGUI extends JFrame {
         // Admin Tab 3: Global Reservations Monitor
         adminAllResModel = new DefaultTableModel(new String[]{"Res ID", "Guest ID", "Room #", "Check-In", "Check-Out", "Total ($)", "Status"}, 0);
         adminAllResTable = new JTable(adminAllResModel);
+        adminAllResTable.getColumnModel().getColumn(6).setCellRenderer(new StatusBadgeRenderer());
         tabs.addTab("Global Booking Monitor", new JScrollPane(adminAllResTable));
 
         dashboard.add(tabs, BorderLayout.CENTER);
@@ -462,8 +525,8 @@ public class HotelSystemGUI extends JFrame {
         cardLayout.show(mainPanel, "AUTH");
     }
 
-    // ==========================================
-    // EXACT UI COLOR PALETTE ENGINE
+// ==========================================
+    // EXACT SCREENSHOT COLOR PALETTE ENGINE
     // ==========================================
     private void toggleTheme() {
         isDarkMode = themeToggle.getSelectedIndex() == 1;
@@ -471,76 +534,95 @@ public class HotelSystemGUI extends JFrame {
     }
 
     private void applyExactTheme() {
-        // --- 1. COLOR DEFINITIONS FROM IMAGE ---
-        // Light Mode: Warm Cream & Gold
-        Color lightBg       = new Color(249, 246, 238); // Soft Cream #F9F6EE
-        Color lightCard     = new Color(255, 255, 255); // Pure White #FFFFFF
-        Color lightText     = new Color(44, 40, 37);    // Dark Charcoal #2C2825
-        Color lightBtnBg    = new Color(200, 157, 76);  // Warm Gold #C89D4C
-        Color lightBorder   = new Color(235, 220, 185); // Light Amber Border #EBDCB9
+        // --- 1. LIGHT MODE PALETTE ---
+        Color lightBg         = new Color(0xF6, 0xF3, 0xEB); // #F6F3EB Main Cream
+        Color lightTopBar     = new Color(0xEF, 0xEC, 0xE3); // #EFECE3 Top Header
+        Color lightCard       = new Color(0xFF, 0xFF, 0xFF); // #FFFFFF Pure White
+        Color lightInputBg    = new Color(0xF3, 0xEF, 0xE6); // #F3EFE6 Input Fields
+        Color lightText       = new Color(0x3C, 0x38, 0x35); // #3C3835 Primary Text
+        Color lightBtnBg      = new Color(0xC5, 0x9B, 0x4B); // #C59B4B Gold Button
+        Color lightBorder     = new Color(0xE5, 0xDE, 0xC9); // #E5DEC9 Soft Border
 
-        // Dark Mode: Deep Obsidian & Neon Blue
-        Color darkBg        = new Color(15, 17, 26);    // Deep Obsidian #0F111A
-        Color darkCard      = new Color(24, 27, 38);    // Midnight Blue #181B26
-        Color darkText      = new Color(224, 227, 245); // Soft Ice White #E0E3F5
-        Color darkBtnBg     = new Color(53, 58, 112);   // Neon Blue Accent #353A70
-        Color darkBorder    = new Color(58, 63, 88);    // Soft Glowing Navy Border #3A3F58
+        // --- 2. DARK MODE PALETTE ---
+        Color darkBg          = new Color(0x0B, 0x0D, 0x17); // #0B0D17 Main Indigo
+        Color darkTopBar      = new Color(0x12, 0x15, 0x24); // #121524 Top Header
+        Color darkCard        = new Color(0x16, 0x19, 0x28); // #161928 Midnight Card
+        Color darkInputBg     = new Color(0x0E, 0x10, 0x1B); // #0E101B Input Fields
+        Color darkText        = new Color(0xEC, 0xEF, 0xFC); // #ECEFFC Soft Ice Text
+        Color darkBtnBg       = new Color(0x3B, 0x43, 0x78); // #3B4378 Indigo Button
+        Color darkBorder      = new Color(0x27, 0x2C, 0x48); // #272C48 Indigo Border
 
-        // Active Palette Assignment
-        Color activeBg     = isDarkMode ? darkBg : lightBg;
-        Color activeCard   = isDarkMode ? darkCard : lightCard;
-        Color activeText   = isDarkMode ? darkText : lightText;
-        Color activeBtnBg  = isDarkMode ? darkBtnBg : lightBtnBg;
-        Color activeBorder = isDarkMode ? darkBorder : lightBorder;
+        // --- 3. ACTIVE PALETTE ASSIGNMENT ---
+        Color activeBg      = isDarkMode ? darkBg : lightBg;
+        Color activeTopBar  = isDarkMode ? darkTopBar : lightTopBar;
+        Color activeCard    = isDarkMode ? darkCard : lightCard;
+        Color activeInput   = isDarkMode ? darkInputBg : lightInputBg;
+        Color activeText    = isDarkMode ? darkText : lightText;
+        Color activeBtnBg   = isDarkMode ? darkBtnBg : lightBtnBg;
+        Color activeBorder  = isDarkMode ? darkBorder : lightBorder;
 
-        // --- 2. APPLY TO MAIN WINDOW ---
+        // Apply background to window frame & main card container
         getContentPane().setBackground(activeBg);
         mainPanel.setBackground(activeBg);
 
-        // --- 3. RECURSIVE STYLING ---
-        styleComponents(this, activeBg, activeCard, activeText, activeBtnBg, activeBorder);
+        // Style window components recursively
+        styleComponents(this, activeBg, activeTopBar, activeCard, activeInput, activeText, activeBtnBg, activeBorder);
 
-        // Refresh UI tree
+        // Force UI tree refresh
         SwingUtilities.updateComponentTreeUI(this);
     }
 
-    private void styleComponents(Component comp, Color bg, Color cardBg, Color textFg, Color btnBg, Color borderClr) {
-        // Style Panels
+    private void styleComponents(Component comp, Color bg, Color topBarBg, Color cardBg, Color inputBg, Color textFg, Color btnBg, Color borderClr) {
+        
+        // Panels & Cards
         if (comp instanceof JPanel) {
-            comp.setBackground(cardBg);
-            if (((JPanel) comp).getBorder() instanceof javax.swing.border.TitledBorder) {
-                javax.swing.border.TitledBorder border = (javax.swing.border.TitledBorder) ((JPanel) comp).getBorder();
+            JPanel panel = (JPanel) comp;
+            
+            // Check if panel is part of the top header bar
+            if (panel.getParent() == getContentPane() && panel.getLayout() instanceof BorderLayout) {
+                panel.setBackground(topBarBg);
+            } else {
+                panel.setBackground(cardBg);
+            }
+
+            if (panel.getBorder() instanceof javax.swing.border.TitledBorder) {
+                javax.swing.border.TitledBorder border = (javax.swing.border.TitledBorder) panel.getBorder();
                 border.setTitleColor(textFg);
                 border.setBorder(BorderFactory.createLineBorder(borderClr, 1, true));
             }
         } 
-        // Style Labels
+        // Labels
         else if (comp instanceof JLabel) {
             comp.setForeground(textFg);
         } 
-        // Style Buttons
+        // Action Buttons
         else if (comp instanceof JButton) {
             JButton btn = (JButton) comp;
             btn.setBackground(btnBg);
             btn.setForeground(Color.WHITE);
+            btn.setFont(new Font("SansSerif", Font.BOLD, 13));
             btn.setFocusPainted(false);
             btn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(borderClr, 1, true),
-                BorderFactory.createEmptyBorder(6, 12, 6, 12)
+                BorderFactory.createEmptyBorder(8, 16, 8, 16)
             ));
         } 
-        // Style Text Fields
+        // Text Input Fields & Password Fields
         else if (comp instanceof JTextField || comp instanceof JPasswordField) {
-            comp.setBackground(cardBg);
+            comp.setBackground(inputBg);
             comp.setForeground(textFg);
-            ((JComponent) comp).setBorder(BorderFactory.createLineBorder(borderClr, 1, true));
+            comp.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            ((JComponent) comp).setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(borderClr, 1, true),
+                BorderFactory.createEmptyBorder(6, 10, 6, 10)
+            ));
         } 
-        // Style Dropdowns
+        // Dropdown Combo Boxes
         else if (comp instanceof JComboBox) {
-            comp.setBackground(cardBg);
+            comp.setBackground(inputBg);
             comp.setForeground(textFg);
         } 
-        // Style Tables & Headers
+        // Data Tables (User Dashboard & Admin Directory)
         else if (comp instanceof JTable) {
             JTable table = (JTable) comp;
             table.setBackground(cardBg);
@@ -548,22 +630,96 @@ public class HotelSystemGUI extends JFrame {
             table.setGridColor(borderClr);
             table.setSelectionBackground(btnBg);
             table.setSelectionForeground(Color.WHITE);
+            table.setRowHeight(24);
+            
             if (table.getTableHeader() != null) {
                 table.getTableHeader().setBackground(btnBg);
                 table.getTableHeader().setForeground(Color.WHITE);
+                table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 12));
             }
         } 
-        // Style Tabbed Pane
+        // Tabbed Views
         else if (comp instanceof JTabbedPane) {
             comp.setBackground(cardBg);
             comp.setForeground(textFg);
         }
 
-        // Traverse children
+        // Process child components
         if (comp instanceof Container) {
             for (Component child : ((Container) comp).getComponents()) {
-                styleComponents(child, bg, cardBg, textFg, btnBg, borderClr);
+                styleComponents(child, bg, topBarBg, cardBg, inputBg, textFg, btnBg, borderClr);
             }
+        }
+    }
+
+    // ==========================================
+    // STATUS BADGE RENDERER — colored pill badges for status columns
+    // (parity with the web preview's badge styling, both themes)
+    // ==========================================
+    private class StatusBadgeRenderer extends JLabel implements TableCellRenderer {
+        private Color badgeBg;
+        private boolean isBadge;
+        private JTable hostTable;
+        private boolean rowSelected;
+
+        StatusBadgeRenderer() {
+            setOpaque(false);
+            setHorizontalAlignment(SwingConstants.CENTER);
+            setFont(getFont().deriveFont(Font.BOLD, 11f));
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            hostTable = table;
+            rowSelected = isSelected;
+            String text = value == null ? "" : value.toString().trim();
+            setText(text);
+            isBadge = false;
+            setOpaque(false);
+            switch (text.toUpperCase()) {
+                case "AVAILABLE":
+                case "CONFIRMED":
+                    badgeBg = isDarkMode ? new Color(23, 48, 31) : new Color(232, 245, 233);
+                    setForeground(isDarkMode ? new Color(123, 216, 143) : new Color(46, 125, 50));
+                    isBadge = true;
+                    break;
+                case "BOOKED":
+                case "CANCELLED":
+                    badgeBg = isDarkMode ? new Color(58, 27, 27) : new Color(253, 236, 234);
+                    setForeground(isDarkMode ? new Color(255, 138, 128) : new Color(179, 38, 30));
+                    isBadge = true;
+                    break;
+                case "ADMIN":
+                case "USER":
+                    badgeBg = isDarkMode ? new Color(51, 38, 15) : new Color(255, 244, 224);
+                    setForeground(isDarkMode ? new Color(255, 196, 107) : new Color(178, 106, 0));
+                    isBadge = true;
+                    break;
+                default:
+                    setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
+                    setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
+                    setOpaque(true);
+            }
+            return this;
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            if (!isBadge) { super.paintComponent(g); return; }
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Dimension d = getSize();
+            // Fill the full cell first so the row-selection band stays visible
+            g2.setColor(rowSelected ? hostTable.getSelectionBackground() : hostTable.getBackground());
+            g2.fillRect(0, 0, d.width, d.height);
+            int h = Math.min(d.height - 6, 20);
+            int y = (d.height - h) / 2;
+            int w = getFontMetrics(getFont()).stringWidth(getText()) + 20;
+            int x = (d.width - w) / 2;
+            g2.setColor(badgeBg);
+            g2.fillRoundRect(x, y, w, h, h, h);
+            g2.dispose();
+            super.paintComponent(g);
         }
     }
 

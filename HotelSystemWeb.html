@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hotel Reservation System — CodeAlpha (Web Preview)</title>
+<style>
+  /* ============================================================
+     EXACT palettes ported from HotelSystemGUI.applyExactTheme()
+     Light: warm cream & gold   |   Dark: deep obsidian & neon blue
+     ============================================================ */
+  :root, [data-theme="light"] {
+    --bg:        #F9F6EE;   /* soft cream        */
+    --card:      #FFFFFF;   /* pure white        */
+    --text:      #2C2825;   /* dark charcoal     */
+    --muted:     #8A8178;
+    --accent:    #C89D4C;   /* warm gold         */
+    --accent-2:  #b78a3a;
+    --border:    #EBDCB9;   /* light amber       */
+    --header:    #FFFFFF;
+    --table-head:#C89D4C;
+    --sel:       #C89D4C;
+    --green:     #2E7D32;
+    --green-bg:  #E8F5E9;
+    --red:       #B3261E;
+    --red-bg:    #FDECEA;
+    --amber:     #B26A00;
+    --amber-bg:  #FFF4E0;
+    --shadow:    0 10px 30px rgba(44,40,37,.08);
+    --shadow-sm: 0 2px 8px rgba(44,40,37,.06);
+    --topbar-bg: linear-gradient(120deg, #FBF7EC 0%, #F6EFDF 100%);
+  }
+  [data-theme="dark"] {
+    --bg:        #0F111A;   /* deep obsidian     */
+    --card:      #181B26;   /* midnight blue     */
+    --text:      #E0E3F5;   /* soft ice white    */
+    --muted:     #9AA0C0;
+    --accent:    #353A70;   /* neon blue accent  */
+    --accent-2:  #454c8f;
+    --border:    #3A3F58;   /* soft glowing navy */
+    --header:    #12141F;
+    --table-head:#353A70;
+    --sel:       #353A70;
+    --green:     #7BD88F;
+    --green-bg:  #17301F;
+    --red:       #FF8A80;
+    --red-bg:    #3A1B1B;
+    --amber:     #FFC46B;
+    --amber-bg:  #33260F;
+    --shadow:    0 12px 34px rgba(0,0,0,.45);
+    --shadow-sm: 0 2px 10px rgba(0,0,0,.35);
+    --topbar-bg: linear-gradient(120deg, #12141F 0%, #181B26 100%);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    transition: background-color .35s ease, color .35s ease;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ---------- Top global bar ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 14px 22px;
+    background: var(--topbar-bg);
+    border-bottom: 1px solid var(--border);
+    transition: background .35s ease, border-color .35s ease;
+    flex-wrap: wrap;
+  }
+  .topbar h1 {
+    font-size: 19px; font-weight: 700; letter-spacing: .2px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .topbar h1 .hotel-ico {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--accent); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 19px; box-shadow: var(--shadow-sm);
+    transition: background .35s ease;
+  }
+  .theme-box { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  select.theme-sel {
+    appearance: none; -webkit-appearance: none;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 30px 7px 12px; font-size: 13px; font-weight: 600;
+    cursor: pointer; outline: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                      linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+    background-size: 5px 5px; background-repeat: no-repeat;
+    transition: background-color .35s ease, border-color .35s ease;
+  }
+  select.theme-sel:hover { border-color: var(--accent); }
+
+  /* ---------- Screens & layout ---------- */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .screen { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .screen.active { display: flex; }
+
+  /* ---------- Auth ---------- */
+  .auth-wrap {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; padding: 30px 16px;
+    background:
+      radial-gradient(1200px 500px at 15% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+      radial-gradient(900px 420px at 90% 110%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%);
+  }
+  .auth-card {
+    width: 100%; max-width: 420px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: var(--shadow); overflow: hidden;
+    transition: background .35s ease, border-color .35s ease;
+  }
+  .auth-tabs { display: flex; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .auth-tabs button {
+    flex: 1; padding: 13px 8px; font-size: 13.5px; font-weight: 600;
+    background: transparent; border: none; cursor: pointer; color: var(--muted);
+    border-bottom: 2.5px solid transparent; transition: color .2s, border-color .2s;
+  }
+  .auth-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .auth-body { padding: 24px 26px 26px; }
+  .auth-body form { display: flex; flex-direction: column; gap: 13px; }
+  .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+  .field input {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 9px; outline: none;
+    transition: border-color .2s, box-shadow .2s, background .35s;
+  }
+  .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .auth-cred {
+    font-size: 12px; color: var(--muted); text-align: center;
+    background: var(--bg); border: 1px dashed var(--border);
+    border-radius: 10px; padding: 9px 12px; line-height: 1.7;
+  }
+  .auth-cred code { color: var(--accent); font-weight: 700; background: color-mix(in srgb, var(--accent) 12%, transparent); padding: 1px 6px; border-radius: 5px; font-size: 11.5px; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    appearance: none; border: 1px solid var(--border); border-radius: 9px;
+    background: var(--accent); color: #fff; font-size: 13.5px; font-weight: 700;
+    padding: 9px 16px; cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background .2s, transform .08s, box-shadow .2s, filter .2s;
+  }
+  .btn:hover { background: var(--accent-2); transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .btn:active { transform: translateY(0); }
+  .btn.block { width: 100%; }
+  .btn.danger {
+    background: transparent; color: var(--red);
+    border: 1px solid color-mix(in srgb, var(--red) 45%, transparent);
+  }
+  .btn.danger:hover { background: var(--red-bg); color: var(--red); box-shadow: none; transform: none; }
+  .btn.ghost { background: var(--card); color: var(--text); }
+  .btn.ghost:hover { background: var(--bg); box-shadow: none; transform: none; }
+
+  /* ---------- Dashboards ---------- */
+  .dash { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 14px 18px 18px; gap: 12px; }
+  .dash-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  .dash-header h2 { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .dash-header .who { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+  .dash-header .who b { color: var(--accent); }
+  .id-chip {
+    display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700;
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    padding: 2px 8px; border-radius: 20px; vertical-align: middle;
+  }
+
+  /* Booking form card */
+  .booking-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 13px; box-shadow: var(--shadow-sm); padding: 14px 16px;
+    transition: background .35s ease, border-color .35s ease;
+  }
+  .booking-card .b-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--accent); margin-bottom: 12px; display: flex; align-items: center; gap: 7px;
+  }
+  .booking-rows { display: flex; flex-direction: column; gap: 10px; }
+  .b-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .b-row label { font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .b-row .grow { flex: 1; min-width: 150px; }
+  .b-row input, .b-row select {
+    padding: 8px 10px; font-size: 13.5px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; outline: none;
+    transition: border-color .2s, box-shadow .2s, background .35s;
+  }
+  .b-row input:focus, .b-row select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+  .b-row select { cursor: pointer; }
+  .b-row input[name="total"] { font-weight: 700; color: var(--accent); width: 110px; }
+  .b-row .btn { margin-left: auto; }
+
+  /* ---------- Tabs (content) ---------- */
+  .tabbar { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding: 0 2px; overflow-x: auto; }
+  .tabbar button {
+    appearance: none; background: transparent; border: none; cursor: pointer;
+    padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--muted);
+    border-bottom: 2.5px solid transparent; white-space: nowrap;
+    transition: color .2s, border-color .2s;
+  }
+  .tabbar button:hover { color: var(--text); }
+  .tabbar button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel { display: none; flex: 1; flex-direction: column; min-height: 0; }
+  .tab-panel.active { display: flex; }
+  .panel-body {
+    flex: 1; overflow: auto; margin-top: 10px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow-sm); transition: background .35s ease, border-color .35s ease;
+  }
+
+  /* ---------- Tables ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--table-head); color: #fff; text-align: left;
+    padding: 10px 14px; font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    transition: background .35s ease;
+  }
+  tbody td { padding: 9px 14px; border-top: 1px solid var(--border); }
+  tbody tr { cursor: pointer; transition: background .12s; }
+  tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  tbody tr.selected { background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .3px; }
+  .badge.avail  { color: var(--green); background: var(--green-bg); }
+  .badge.booked { color: var(--red);   background: var(--red-bg); }
+  .badge.conf   { color: var(--green); background: var(--green-bg); }
+  .badge.canc   { color: var(--red);   background: var(--red-bg); }
+  .badge.role   { color: var(--amber); background: var(--amber-bg); }
+
+  /* Empty state */
+  .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+  .empty .big { font-size: 30px; margin-bottom: 8px; }
+
+  /* Add-room form */
+  .add-room {
+    display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+    padding: 14px 16px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow-sm);
+    margin-top: 10px; transition: background .35s ease, border-color .35s ease;
+  }
+  .add-room .f { display: flex; flex-direction: column; gap: 4px; }
+  .add-room .f label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .add-room input, .add-room select {
+    padding: 8px 10px; font-size: 13.5px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; outline: none;
+    transition: border-color .2s, box-shadow .2s, background .35s;
+  }
+  .add-room input:focus, .add-room select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+  .add-room .btn { align-self: flex-end; }
+
+  .panel-foot {
+    display: flex; justify-content: flex-end; padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ---------- Modals ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(10, 10, 14, .5); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    animation: fadeIn .15s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    width: 100%; max-width: 380px; background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+    padding: 22px 24px; animation: pop .18s cubic-bezier(.2,.9,.3,1.2);
+  }
+  @keyframes pop { from { transform: scale(.92) translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .modal .m-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .modal .m-ico { font-size: 22px; }
+  .modal h3 { font-size: 15px; }
+  .modal p { font-size: 13.5px; line-height: 1.6; color: var(--text); white-space: pre-line; }
+  .modal .m-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  footer {
+    padding: 10px 22px; font-size: 11.5px; color: var(--muted);
+    border-top: 1px solid var(--border); text-align: center;
+    transition: border-color .35s ease;
+  }
+  footer code { color: var(--accent); font-weight: 700; }
+
+  @media (max-width: 640px) {
+    .topbar h1 { font-size: 16px; }
+    .b-row .btn { margin-left: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+  <!-- ================= TOP GLOBAL BAR ================= -->
+  <header class="topbar">
+    <h1><span class="hotel-ico">🏨</span> Enterprise Hotel &amp; Reservation Suite</h1>
+    <div class="theme-box">
+      <span>Theme:</span>
+      <select id="themeSel" class="theme-sel">
+        <option value="light" selected>☀️ Light Mode</option>
+        <option value="dark">🌙 Dark Mode</option>
+      </select>
+    </div>
+  </header>
+
+  <main>
+    <!-- ================= AUTH SCREEN ================= -->
+    <section id="screen-auth" class="screen active">
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <div class="auth-tabs">
+            <button id="tabLogin" class="active" onclick="switchAuthTab('login')">Login</button>
+            <button id="tabReg" onclick="switchAuthTab('reg')">Register New Guest</button>
+          </div>
+          <div class="auth-body">
+            <!-- Login form -->
+            <form id="formLogin" onsubmit="handleLogin(event)">
+              <div class="field"><label>Username</label><input id="loginUser" type="text" autocomplete="username"></div>
+              <div class="field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password"></div>
+              <button class="btn block" type="submit">Login</button>
+            </form>
+            <!-- Register form -->
+            <form id="formReg" onsubmit="handleRegister(event)" style="display:none">
+              <div class="field"><label>New Username</label><input id="regUser" type="text" autocomplete="username"></div>
+              <div class="field"><label>New Password</label><input id="regPass" type="password" autocomplete="new-password"></div>
+              <button class="btn block" type="submit">Create Account</button>
+            </form>
+          </div>
+        </div>
+        <div class="auth-cred">
+          Demo accounts — Admin: <code>admin / admin123</code> &nbsp;·&nbsp; Guest: <code>john_doe / password</code><br>
+          Or register a new guest account.
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= USER DASHBOARD ================= -->
+    <section id="screen-user" class="screen">
+      <div class="dash">
+        <div class="dash-header">
+          <div>
+            <h2>🧑‍💼 Guest Booking Console</h2>
+            <div class="who">Welcome, <b id="userWelcome">Guest</b><span id="userGuestChip" class="id-chip"></span></div>
+          </div>
+          <button class="btn ghost" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Booking controls -->
+        <div class="booking-card">
+          <div class="b-title">📅 Book a Room</div>
+          <div class="booking-rows">
+            <div class="b-row">
+              <label>Category:</label>
+              <select id="userCat" onchange="updateUserRoomsDropdown()">
+                <option>All</option><option>Standard</option><option>Deluxe</option><option>Suite</option>
+              </select>
+              <label>Select Room:</label>
+              <select id="userRoom" class="grow" onchange="autoCalculateUserAmount()"></select>
+            </div>
+            <div class="b-row">
+              <label>Check-In:</label>
+              <input id="checkIn" type="date" value="2026-08-10">
+              <label>Check-Out:</label>
+              <input id="checkOut" type="date" value="2026-08-14">
+              <label>Total ($):</label>
+              <input id="totalAmount" name="total" type="number" min="0" step="0.01">
+            </div>
+            <div class="b-row">
+              <button class="btn" onclick="handleUserBookRoom()">Confirm Booking &amp; Payment</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabbar">
+          <button id="utab-rooms" class="active" onclick="switchUserTab('rooms')">Available Rooms Directory</button>
+          <button id="utab-res" onclick="switchUserTab('res')">My Active Bookings</button>
+        </div>
+        <div class="tab-panel active" id="upanel-rooms">
+          <div class="panel-body"><table id="userRoomsTable"><thead></thead><tbody></tbody></table></div>
+        </div>
+        <div class="tab-panel" id="upanel-res">
+          <div class="panel-body" style="margin-bottom:10px"><table id="userResTable"><thead></thead><tbody></tbody></table></div>
+          <div class="panel-foot"><button class="btn danger" onclick="handleUserCancelRes()">Cancel Selected Reservation</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ADMIN DASHBOARD ================= -->
+    <section id="screen-admin" class="screen">
+      <div class="dash">
+        <div class="dash-header">
+          <div>
+            <h2>🛡️ Administrator Operations Console</h2>
+            <div class="who">Signed in as <b>admin</b><span class="id-chip">#9999</span></div>
+          </div>
+          <button class="btn ghost" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="tabbar">
+          <button id="atab-rooms" class="active" onclick="switchAdminTab('rooms')">Manage Rooms Inventory</button>
+          <button id="atab-users" onclick="switchAdminTab('users')">User Accounts</button>
+          <button id="atab-res" onclick="switchAdminTab('res')">Global Booking Monitor</button>
+        </div>
+
+        <!-- Tab 1: Rooms -->
+        <div class="tab-panel active" id="apanel-rooms">
+          <div class="add-room">
+            <div class="f"><label>Room #</label><input id="newRoomNum" type="number" placeholder="e.g. 402"></div>
+            <div class="f"><label>Type</label><input id="newRoomType" type="text" placeholder="e.g. Queen Bed"></div>
+            <div class="f"><label>Category</label>
+              <select id="newRoomCat"><option>Standard</option><option>Deluxe</option><option>Suite</option></select>
+            </div>
+            <div class="f"><label>Price/Night ($)</label><input id="newRoomPrice" type="number" min="0" step="0.01" placeholder="e.g. 150"></div>
+            <button class="btn" onclick="handleAdminAddRoom()">Add Room</button>
+          </div>
+          <div class="panel-body"><table id="adminRoomsTable"><thead></thead><tbody></tbody></table></div>
+        </div>
+
+        <!-- Tab 2: Users -->
+        <div class="tab-panel" id="apanel-users">
+          <div class="panel-body" style="margin-bottom:10px"><table id="adminUsersTable"><thead></thead><tbody></tbody></table></div>
+          <div class="panel-foot"><button class="btn danger" onclick="handleAdminDeleteUser()">Delete Selected User Account</button></div>
+        </div>
+
+        <!-- Tab 3: Reservations -->
+        <div class="tab-panel" id="apanel-res">
+          <div class="panel-body"><table id="adminResTable"><thead></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Web preview of the CodeAlpha Java Swing app — <code>HotelSystemWeb.html</code> · same engine as <code>HotelSystemGUI.java</code>
+  </footer>
+
+  <div id="modalRoot"></div>
+
+<script>
+/* =====================================================================
+   Business engine — faithful port of Hotel.java / Room.java /
+   Reservation.java / User.java (same logic, counters, and messages)
+   ===================================================================== */
+const hotel = {
+  rooms: [
+    { num: 101, type: "Single Bed",       cat: "Standard", price: 100, avail: true },
+    { num: 102, type: "Double Bed",       cat: "Standard", price: 120, avail: true },
+    { num: 201, type: "King Bed",         cat: "Deluxe",   price: 220, avail: true },
+    { num: 301, type: "Executive Suite",  cat: "Suite",    price: 450, avail: true },
+  ],
+  reservations: [],
+  users: [
+    { id: 9999, name: "admin",    pass: "admin123", role: "ADMIN" },
+    { id: 1001, name: "john_doe", pass: "password", role: "USER"  },
+  ],
+  userCounter: 1002,
+  resCounter: 5001,
+
+  authenticate(u, p) { return this.users.find(x => x.name === u && x.pass === p) || null; },
+  registerUser(u, p) {
+    if (this.users.some(x => x.name.toLowerCase() === u.toLowerCase())) return null;
+    const nu = { id: this.userCounter++, name: u, pass: p, role: "USER" };
+    this.users.push(nu); return nu;
+  },
+  deleteUser(id) {
+    const target = this.users.find(x => x.id === id && x.role !== "ADMIN");
+    if (!target) return false;
+    this.users = this.users.filter(x => x.id !== id);
+    this.reservations.forEach(r => { if (r.guestId === id && r.status === "CONFIRMED") this.cancelReservation(r.id); });
+    return true;
+  },
+  addRoom(num, type, cat, price) {
+    if (this.rooms.some(r => r.num === num)) return false;
+    this.rooms.push({ num, type, cat, price, avail: true });
+    return true;
+  },
+  searchAvailable(cat) {
+    return this.rooms.filter(r => (cat === "All" || r.cat === cat) && r.avail);
+  },
+  makeReservation(guestId, roomId, checkIn, checkOut, amount) {
+    const room = this.rooms.find(r => r.num === roomId && r.avail);
+    if (!room) return null;
+    room.avail = false;
+    const res = { id: this.resCounter++, guestId, roomId, checkIn, checkOut, amount, status: "CONFIRMED" };
+    this.reservations.push(res);
+    return res;
+  },
+  cancelReservation(id) {
+    const res = this.reservations.find(r => r.id === id && r.status === "CONFIRMED");
+    if (!res) return false;
+    res.status = "CANCELLED";
+    const room = this.rooms.find(r => r.num === res.roomId);
+    if (room) room.avail = true;
+    return true;
+  },
+  resForGuest(id) { return this.reservations.filter(r => r.guestId === id); },
+};
+
+/* ---------------- UI state ---------------- */
+let currentUser = null;
+const $ = id => document.getElementById(id);
+const fmt = n => n.toFixed(2);
+
+/* ---------------- Theme (exact palettes) ---------------- */
+const themeSel = $("themeSel");
+themeSel.addEventListener("change", () => {
+  document.documentElement.dataset.theme = themeSel.value;
+});
+
+/* ---------------- Modals (styled JOptionPane) ---------------- */
+function showMessage(title, message, kind = "info") {
+  return new Promise(resolve => {
+    const icons = { info: "ℹ️", success: "✅", error: "❌", warn: "⚠️" };
+    $("modalRoot").innerHTML = `
+      <div class="overlay">
+        <div class="modal">
+          <div class="m-head"><span class="m-ico">${icons[kind] || icons.info}</span><h3>${title}</h3></div>
+          <p>${escapeHtml(message)}</p>
+          <div class="m-actions"><button class="btn" data-ok>OK</button></div>
+        </div>
+      </div>`;
+    $("modalRoot").querySelector("[data-ok]").focus();
+    $("modalRoot").querySelector(".overlay").addEventListener("click", e => {
+      if (e.target.classList.contains("overlay")) { close(); }
+    });
+    function close() { $("modalRoot").innerHTML = ""; resolve(); }
+    $("modalRoot").querySelector("[data-ok]").addEventListener("click", close);
+  });
+}
+function showConfirm(title, message) {
+  return new Promise(resolve => {
+    $("modalRoot").innerHTML = `
+      <div class="overlay">
+        <div class="modal">
+          <div class="m-head"><span class="m-ico">❓</span><h3>${title}</h3></div>
+          <p>${escapeHtml(message)}</p>
+          <div class="m-actions">
+            <button class="btn ghost" data-no>No</button>
+            <button class="btn" data-yes>Yes</button>
+          </div>
+        </div>
+      </div>`;
+    $("modalRoot").querySelector("[data-no]").focus();
+    const done = val => { $("modalRoot").innerHTML = ""; resolve(val); };
+    $("modalRoot").querySelector("[data-yes]").addEventListener("click", () => done(true));
+    $("modalRoot").querySelector("[data-no]").addEventListener("click", () => done(false));
+  });
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ---------------- Auth ---------------- */
+function switchAuthTab(tab) {
+  $("tabLogin").classList.toggle("active", tab === "login");
+  $("tabReg").classList.toggle("active", tab === "reg");
+  $("formLogin").style.display = tab === "login" ? "" : "none";
+  $("formReg").style.display = tab === "reg" ? "" : "none";
+}
+function handleLogin(e) {
+  e.preventDefault();
+  const u = $("loginUser").value.trim(), p = $("loginPass").value.trim();
+  const user = hotel.authenticate(u, p);
+  if (!user) { showMessage("Login Failed", "Invalid Username or Password.", "error"); return; }
+  currentUser = user;
+  $("loginUser").value = ""; $("loginPass").value = "";
+  if (user.role === "ADMIN") { refreshAdminTables(); showScreen("screen-admin"); }
+  else {
+    $("userWelcome").textContent = user.name;
+    $("userGuestChip").textContent = "#" + user.id;
+    refreshUserView(); showScreen("screen-user");
+  }
+}
+async function handleRegister(e) {
+  e.preventDefault();
+  const u = $("regUser").value.trim(), p = $("regPass").value.trim();
+  if (!u || !p) { await showMessage("Error", "Fields cannot be empty.", "error"); return; }
+  const nu = hotel.registerUser(u, p);
+  if (!nu) { await showMessage("Registration Failed", "Username already exists. Choose another.", "warn"); return; }
+  await showMessage("Registration Successful", `Account Created Successfully!\nYour Assigned Guest ID is: #${nu.id}`, "success");
+  $("regUser").value = ""; $("regPass").value = "";
+  switchAuthTab("login");
+}
+function logout() {
+  currentUser = null;
+  showScreen("screen-auth");
+}
+
+/* ---------------- Screen switching ---------------- */
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+/* ---------------- Table helpers ---------------- */
+function buildTable(tableId, columns, rows) {
+  const table = $(tableId);
+  table.querySelector("thead").innerHTML = "<tr>" + columns.map(c => `<th>${c}</th>`).join("") + "</tr>";
+  const tbody = table.querySelector("tbody");
+  tbody.innerHTML = "";
+  if (!rows.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${columns.length}"><div class="empty"><div class="big">🗒️</div>No records to display.</div></td></tr>`;
+    return;
+  }
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = row.map(c => `<td>${c}</td>`).join("");
+    tr.addEventListener("click", () => {
+      tbody.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
+      tr.classList.add("selected");
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------------- User dashboard ---------------- */
+function switchUserTab(tab) {
+  $("utab-rooms").classList.toggle("active", tab === "rooms");
+  $("utab-res").classList.toggle("active", tab === "res");
+  $("upanel-rooms").classList.toggle("active", tab === "rooms");
+  $("upanel-res").classList.toggle("active", tab === "res");
+}
+function roomLabel(r) { return `Room ${r.num} (${r.type} - ${r.cat}) - $${r.price}/night`; }
+
+function updateUserRoomsDropdown() {
+  const sel = $("userRoom");
+  sel.innerHTML = "";
+  hotel.searchAvailable($("userCat").value).forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = r.num; opt.textContent = roomLabel(r);
+    sel.appendChild(opt);
+  });
+  autoCalculateUserAmount();
+}
+function autoCalculateUserAmount() {
+  const sel = $("userRoom");
+  const room = sel.selectedIndex >= 0 ? hotel.rooms.find(r => r.num === +sel.value) : null;
+  $("totalAmount").value = room ? room.price * 4 : "";
+}
+function recalcFromDates() {
+  // Enhancement: if dates are valid, price by actual nights (default dates = 4 nights).
+  const sel = $("userRoom");
+  const room = sel.selectedIndex >= 0 ? hotel.rooms.find(r => r.num === +sel.value) : null;
+  if (!room) return;
+  const a = new Date($("checkIn").value), b = new Date($("checkOut").value);
+  if (isNaN(a) || isNaN(b) || b <= a) return;
+  const nights = Math.round((b - a) / 86400000);
+  $("totalAmount").value = (room.price * nights).toFixed(2);
+}
+$("checkIn").addEventListener("change", recalcFromDates);
+$("checkOut").addEventListener("change", recalcFromDates);
+
+async function handleUserBookRoom() {
+  const sel = $("userRoom");
+  if (sel.selectedIndex < 0) { await showMessage("Error", "Please select an available room.", "error"); return; }
+  try {
+    const amount = parseFloat($("totalAmount").value);
+    if (isNaN(amount)) throw new Error();
+    const inD = $("checkIn").value, outD = $("checkOut").value;
+    const res = hotel.makeReservation(currentUser.id, +sel.value, inD, outD, amount);
+    if (res) {
+      await showMessage("Success", `Booking Confirmed!\nReservation ID: #${res.id}`, "success");
+      refreshUserView();
+    }
+  } catch (ex) { await showMessage("Error", "Invalid inputs.", "error"); }
+}
+async function handleUserCancelRes() {
+  const tbody = $("userResTable").querySelector("tbody");
+  const row = tbody.querySelector("tr.selected");
+  if (!row) { await showMessage("Warning", "Select a reservation to cancel.", "warn"); return; }
+  const resId = +row.dataset.resId;
+  if (hotel.cancelReservation(resId)) {
+    await showMessage("Cancelled", `Reservation #${resId} cancelled.`, "success");
+    refreshUserView();
+  }
+}
+function refreshUserView() {
+  buildTable("userRoomsTable",
+    ["Room Number", "Type", "Category", "Price/Night", "Status"],
+    hotel.rooms.map(r => [
+      `<b>${r.num}</b>`, r.type, r.cat,
+      `<span class="num">$${fmt(r.price)}</span>`,
+      r.avail ? `<span class="badge avail">Available</span>` : `<span class="badge booked">Booked</span>`,
+    ]));
+  buildTable("userResTable",
+    ["Reservation ID", "Room Number", "Check-In", "Check-Out", "Amount ($)", "Status"],
+    hotel.resForGuest(currentUser.id).map(r => [
+      `<span class="num">#${r.id}</span>`, r.roomId, r.checkIn, r.checkOut,
+      `<span class="num">$${fmt(r.amount)}</span>`,
+      r.status === "CONFIRMED" ? `<span class="badge conf">CONFIRMED</span>` : `<span class="badge canc">CANCELLED</span>`,
+    ]));
+  // store reservation ids for the cancel handler (skip the empty-state row)
+  const myRes = hotel.resForGuest(currentUser.id);
+  $("userResTable").querySelectorAll("tbody tr:not(.empty-row)").forEach((tr, i) => {
+    tr.dataset.resId = myRes[i].id;
+  });
+  updateUserRoomsDropdown();
+}
+
+/* ---------------- Admin dashboard ---------------- */
+function switchAdminTab(tab) {
+  ["rooms", "users", "res"].forEach(t => {
+    $("atab-" + t).classList.toggle("active", t === tab);
+    $("apanel-" + t).classList.toggle("active", t === tab);
+  });
+}
+async function handleAdminAddRoom() {
+  try {
+    const num = parseInt($("newRoomNum").value, 10);
+    const type = $("newRoomType").value.trim();
+    const cat = $("newRoomCat").value;
+    const price = parseFloat($("newRoomPrice").value);
+    if (isNaN(num) || !type || isNaN(price)) throw new Error();
+    if (hotel.addRoom(num, type, cat, price)) {
+      await showMessage("Success", `Room ${num} added successfully!`, "success");
+      $("newRoomNum").value = ""; $("newRoomType").value = ""; $("newRoomPrice").value = "";
+      refreshAdminTables();
+    } else { await showMessage("Error", "Room number already exists.", "error"); }
+  } catch (ex) {
+    await showMessage("Input Error", "Please enter valid values for Room # and Price.", "error");
+  }
+}
+async function handleAdminDeleteUser() {
+  const tbody = $("adminUsersTable").querySelector("tbody");
+  const row = tbody.querySelector("tr.selected");
+  if (!row) { await showMessage("Warning", "Select a user from the table to delete.", "warn"); return; }
+  const guestId = +row.dataset.guestId;
+  const ok = await showConfirm("Confirm Deletion",
+    `Are you sure you want to delete Guest #${guestId}?\nAll active reservations for this user will be cancelled.`);
+  if (!ok) return;
+  if (hotel.deleteUser(guestId)) {
+    await showMessage("Success", "User deleted successfully.", "success");
+    refreshAdminTables();
+  } else { await showMessage("Action Denied", "Cannot delete Admin accounts.", "error"); }
+}
+function refreshAdminTables() {
+  buildTable("adminRoomsTable",
+    ["Room Number", "Type", "Category", "Price / Night", "Availability"],
+    hotel.rooms.map(r => [
+      `<b>${r.num}</b>`, r.type, r.cat, `<span class="num">$${fmt(r.price)}</span>`,
+      r.avail ? `<span class="badge avail">Available</span>` : `<span class="badge booked">Booked</span>`,
+    ]));
+  buildTable("adminUsersTable",
+    ["Guest ID", "Username", "Role"],
+    hotel.users.map(u => [`<span class="num">#${u.id}</span>`, u.name,
+      `<span class="badge role">${u.role}</span>`]));
+  $("adminUsersTable").querySelectorAll("tbody tr:not(.empty-row)").forEach((tr, i) => {
+    tr.dataset.guestId = hotel.users[i].id;
+  });
+  buildTable("adminResTable",
+    ["Res ID", "Guest ID", "Room #", "Check-In", "Check-Out", "Total ($)", "Status"],
+    hotel.reservations.map(r => [
+      `<span class="num">#${r.id}</span>`, `<span class="num">#${r.guestId}</span>`, r.roomId,
+      r.checkIn, r.checkOut, `<span class="num">$${fmt(r.amount)}</span>`,
+      r.status === "CONFIRMED" ? `<span class="badge conf">CONFIRMED</span>` : `<span class="badge canc">CANCELLED</span>`,
+    ]));
+}
+
+/* ---------------- Init ---------------- */
+updateUserRoomsDropdown();
+</script>
+</body>
+</html>
